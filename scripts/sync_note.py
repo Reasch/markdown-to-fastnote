@@ -156,6 +156,19 @@ def upload_file(
     return resp.json()
 
 
+def _path_to_folder(remote_path: str) -> str:
+    """
+    将 .md 路径转为文件夹。
+    如 'AI Study/article.md' → 'AI Study/article/'
+    """
+    dirname = os.path.dirname(remote_path)
+    basename = os.path.basename(remote_path)
+    stem, _ = os.path.splitext(basename)
+    if dirname:
+        return f"{dirname}/{stem}/"
+    return f"{stem}/"
+
+
 def _get_image_paths_from_content(content: str) -> list[str]:
     """从 Markdown 内容中提取本地图片引用路径"""
     images = []
@@ -206,20 +219,21 @@ def main():
     token = login(args.base_url, args.credentials, args.password)
     print(f"✅ 登录成功，获取 token")
 
-    # 带图片时，图片放到笔记的同级目录
+    # 带图片时，将笔记和图片放在同一个文件夹下
     if has_images:
-        note_dir = os.path.dirname(args.path)
-        note_path = args.path
+        target_folder = _path_to_folder(args.path)
+        md_filename = os.path.basename(args.path)
+        note_path = target_folder + md_filename
 
-        # 上传图片到笔记同级目录
+        # 上传图片到该文件夹
         for img_path in image_files:
             img_filename = os.path.basename(img_path)
-            img_remote_path = f"{note_dir}/{img_filename}" if note_dir else img_filename
+            img_remote_path = target_folder + img_filename
             print(f"🖼️  上传图片 {img_filename} → {args.vault}/{img_remote_path} ...")
             result = upload_file(args.base_url, token, args.vault, img_remote_path, img_path)
             print(f"   ✅ 图片上传成功")
 
-        # 调整 Markdown 中的图片引用为相对路径（同目录，直接用文件名）
+        # 调整 Markdown 中的图片引用为相对路径（同文件夹，直接用文件名）
         if args.file and args.auto_images:
             for img_file in image_files:
                 img_filename = os.path.basename(img_file)
