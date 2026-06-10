@@ -1,6 +1,6 @@
 # Markdown to FastNote
 
-将 Markdown 笔记推送到 Fast-Note-Sync 服务，供 Obsidian 自动拉取。
+将 Markdown 笔记和图片推送到 Fast-Note-Sync 服务，供 Obsidian 自动拉取。
 
 > [English](README.md)
 
@@ -26,6 +26,12 @@ python3 scripts/sync_note.py -c "# Hello World" -p "test/hello.md"
 
 # 指定 vault（默认 note）
 python3 scripts/sync_note.py -f note.md -p "daily/2024-01-01.md" -v myvault
+
+# 带图片的文章以文件夹形式同步
+python3 scripts/sync_note.py -f ./article.md -p "AI Study/RAG/article.md" -i ./img1.png ./img2.png
+
+# 自动识别 Markdown 中的本地图片引用
+python3 scripts/sync_note.py -f ./article.md -p "AI Study/RAG/article.md" --auto-images
 ```
 
 ## 参数
@@ -35,6 +41,8 @@ python3 scripts/sync_note.py -f note.md -p "daily/2024-01-01.md" -v myvault
 | `--file` | `-f` | 二选一 | 本地 Markdown 文件路径 |
 | `--content` | `-c` | 二选一 | 直接传入文本内容 |
 | `--path` | `-p` | ✅ | 远程保存路径，如 `AI Study/test.md` |
+| `--images` | `-i` | ❌ | 要一起上传的图片文件，多个用空格分隔 |
+| `--auto-images` | — | ❌ | 自动从 Markdown 中识别本地图片引用并上传，替换为相对路径 |
 | `--vault` | `-v` | ❌ | Vault 名称，默认 `note` |
 | `--base-url` | — | ❌ | 服务地址（默认从环境变量 `FNS_BASE_URL` 读取，回退 `http://192.168.100.106:9100`） |
 | `--credentials` | — | ❌ | 登录用户名（默认从环境变量 `FNS_CREDENTIALS` 读取） |
@@ -51,13 +59,17 @@ python3 scripts/sync_note.py -f note.md -p "daily/2024-01-01.md" -v myvault
 ## 工作流程
 
 1. 读取内容（从文件或 `--content` 参数）
-2. 调用 `/api/user/login` 获取 JWT token
-3. 对 `path` 和 `content` 分别计算 Java `String.hashCode()`
-4. 携带 token 调用 `/api/note` 写入笔记
-5. 输出同步结果
+2. 收集图片（`--images` 指定或 `--auto-images` 自动提取）
+3. 调用 `/api/user/login` 获取 JWT token
+4. 如果有图片，将路径转为文件夹结构，逐一上传图片
+5. `--auto-images` 模式下自动替换 Markdown 中的图片引用为相对路径
+6. 调用 `/api/note` 写入笔记
+7. 输出同步结果
 
 ## 注意事项
 
 - 远程路径无需手动创建，服务端自动建目录
 - 请求默认跳过 SSL 证书验证（适配内网自签名证书）
 - `pathHash` / `contentHash` 使用 Java `String.hashCode()` 算法（乘 31、32 位有符号整数）
+- 带图片的文章以文件夹形式存储：`文章名/文章名.md` + 图片文件
+- 图片上传使用流式读取，支持大文件
