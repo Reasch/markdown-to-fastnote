@@ -158,15 +158,14 @@ def upload_file(
 
 def _path_to_folder(remote_path: str) -> str:
     """
-    将 .md 路径转为文件夹。
-    如 'AI Study/article.md' → 'AI Study/article/'
+    将 .md 路径转为同级文件夹。
+    如 'AI Study/article.md' → 'AI Study/'
+    图片和 markdown 放在同一目录下。
     """
     dirname = os.path.dirname(remote_path)
-    basename = os.path.basename(remote_path)
-    stem, _ = os.path.splitext(basename)
     if dirname:
-        return f"{dirname}/{stem}/"
-    return f"{stem}/"
+        return f"{dirname}/"
+    return ""
 
 
 def _get_image_paths_from_content(content: str) -> list[str]:
@@ -207,10 +206,20 @@ def main():
     image_files = list(args.images) if args.images else []
 
     if args.auto_images:
+        # 确定 markdown 文件所在目录，用于解析相对路径图片
+        if args.file:
+            md_dir = os.path.dirname(os.path.abspath(args.file))
+        else:
+            md_dir = os.getcwd()
         # 从 Markdown 内容中提取本地图片路径
         for img_path in _get_image_paths_from_content(content):
-            if os.path.isfile(img_path) and img_path not in image_files:
-                image_files.append(img_path)
+            # 如果是相对路径，基于 markdown 文件所在目录解析
+            if not os.path.isabs(img_path):
+                resolved = os.path.join(md_dir, img_path)
+            else:
+                resolved = img_path
+            if os.path.isfile(resolved) and resolved not in image_files:
+                image_files.append(resolved)
 
     has_images = len(image_files) > 0
 
